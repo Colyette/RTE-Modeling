@@ -10,4 +10,14 @@
 
 #include <stdio.h>
 
+
+class IRBeam{
+    
+public:
+    IRBeam();
+    ~IRBeam();
+private:
+    
+};
+
 #endif /* defined(____IRBeam__) */

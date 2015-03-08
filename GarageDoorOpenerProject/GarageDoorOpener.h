@@ -27,7 +27,7 @@ public:
     //for the thread polliing inputs to generate events
     //TODO might need a helper function
     //TODO might manage queue to update eventTriggeredLast
-    static void pollInputs();
+    void pollInputs();
     
     //runs the main state machine for controller garage door functions
     void runStateMachine();
@@ -39,26 +39,29 @@ public:
     ~GarageDoorOpener();
     
     //TODO add Motor stuff?
-    addMotorAPI(Motor* m);
+    void addMotorAPI(Motor* m);
     
-    addIRBeamAPI(IRBeam* i);
+    void addIRBeamAPI(IRBeam* i);
     
-    addGarageDoorRemote(GarageDoorRemote* gdo);
+    void addGarageDoorRemote(GarageDoorRemote* gdo);
     
     //ends running of whole system
     void endSystem();
     
+    //returns the event creator's thread ID
+    pthread_t getSigGen();
+    
 private:
     //thread to generate events for main thread statemachine
-    pthread_t sigGen = -1;
+    pthread_t sigGen;
     
     //flag to sync thread
     int runProgram;
     
     //stateMachine enum
-    gdstate_t cur_state;
+    states cur_state;
     
-    new_event eventTriggeredLast;
+    events eventTriggeredLast;
     
     //TODO for queued events?
     

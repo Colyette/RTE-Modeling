@@ -12,4 +12,12 @@
 
 #include <stdio.h>
 
+class Motor{
+public:
+    Motor();
+    ~Motor();
+private:
+    
+};
+
 #endif /* defined(____Motor__) */

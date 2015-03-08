@@ -11,4 +11,13 @@
 
 #include <stdio.h>
 
+
+class GarageDoorRemote{
+public:
+    GarageDoorRemote();
+    ~GarageDoorRemote();
+private:
+    
+};
+
 #endif /* defined(____GarageDoorRemote__) */
