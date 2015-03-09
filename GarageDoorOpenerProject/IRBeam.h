@@ -16,7 +16,18 @@ class IRBeam{
 public:
     IRBeam();
     ~IRBeam();
+    
+    //called to turn on IR Beam
+    int irBeamOn();
+    
+    //called to turn off IR Beam
+    int irBeamOff();
+    
+    //returns if the beam is tripped or not
+    int receivedIRTrip();
 private:
+    int beamCon;
+    
     
 };
 

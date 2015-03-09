@@ -43,7 +43,7 @@ public:
     
     void addIRBeamAPI(IRBeam* i);
     
-    void addGarageDoorRemote(GarageDoorRemote* gdo);
+    void addGarageDoorRemoteAPI(GarageDoorRemote* gdo);
     
     //ends running of whole system
     void endSystem();
@@ -51,7 +51,30 @@ public:
     //returns the event creator's thread ID
     pthread_t getSigGen();
     
+    
+    //composed classes
+    Motor* motor;
+    IRBeam* irb;
+    GarageDoorRemote* remote;
 private:
+    void _closedEntry();
+    //void _closedExit();
+    
+    void _openEntry();
+    //void _openExit();
+    
+    //void _stopEntry();
+    //void _stopExit();
+    
+    void _openingEntry();
+    void _openingExit();
+    
+    void _closingEntry();
+    void _closingExit();
+    
+    int Closing;
+    
+    
     //thread to generate events for main thread statemachine
     pthread_t sigGen;
     
@@ -65,10 +88,7 @@ private:
     
     //TODO for queued events?
     
-    //composed classes
-    IRBeam* irb;
-    GarageDoorRemote* remote;
-    Motor* moter;
+    
     
 };
 

@@ -16,6 +16,8 @@ class GarageDoorRemote{
 public:
     GarageDoorRemote();
     ~GarageDoorRemote();
+    
+    int receivedButtonPress();
 private:
     
 };
