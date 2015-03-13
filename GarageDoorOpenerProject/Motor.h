@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#define MOTOR_TIME 5            //time it takes for the motors to open or close the door
+#define MOTOR_TIME (10)            //time it takes for the motors to open or close the door
 
 class Motor{
 public:
@@ -45,9 +45,15 @@ public:
     void runCloseSim();
     
 private:
+    //door is fully open flag
     int open_f;
+
+    //door is fully closed flag
     int closed_f;
+
+    int tickU; //number of ticks till fully up
     
+
     pthread_t motorThread; //thread for simulating the motor usage
     
     int go; //used for running the motors
