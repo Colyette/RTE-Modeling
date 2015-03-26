@@ -5,7 +5,10 @@
  */
 
 #include "GarageDoorRemote.h"
+#include <stdio.h>
+
 #ifdef HARDWARE         //for the actual ir hardware interface
+#include <stdint.h>  //for uint8_t
 
 #else                   //keyboard simulated interface
 #include <iostream>
@@ -26,6 +29,11 @@ int GarageDoorRemote::receivedButtonPress(){
     int ret;
 #ifdef HARDWARE
     //TODO
+    uint8_t input;
+    input= in8(d_i_o_port_b_handle);    //read input reg B
+    if (input & REMOTE_PUSHBUTTON) {    //test button press bit
+        ret =1;
+    }
 #else
 
     char ch;

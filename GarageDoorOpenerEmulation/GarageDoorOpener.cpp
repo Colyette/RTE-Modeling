@@ -57,6 +57,49 @@ void * KeyBoardHelper(void * instance){
 	return 0;
 }
 
+/**
+ * \brief sets up digital IO on port A and port B,  requires root access for mapping
+ */
+void GarageDoorOpener::SetupDIO() {
+    d_i_o_control_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_CONTROL_REGISTER ) ;
+    d_i_o_port_a_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_PORT_A ) ;
+    d_i_o_port_b_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_PORT_B ) ;
+}
+
+/**
+ * \brief gets root access for the current thread
+ */
+int GarageDoorOpener::GetRootAccess(){
+    int status = 0 ;
+    int privity_err ;
+
+    /* Give this thread root permissions to access the hardware */
+    privity_err = ThreadCtl( _NTO_TCTL_IO, NULL );
+    if ( privity_err == -1 )
+    {
+        fprintf( stderr, "can't get root permissions\n" );
+        status = -1;
+    }
+
+    return status ;
+}
+
+/**
+ * \brief
+ */
+int GarageDoorOpener::setPortDirection(){
+    if ( GetRootAccess()){
+        SetupDIO();
+        out8( d_i_o_control_handle, DIO_DIR) ;     // make port A input,B output
+        printf("Set A as input and B as output\n");
+        return 1;
+    }else {
+        printf("Couldn't get root access to set DIO ports\n");
+        return (-1);
+    }
+    
+}
+
 GarageDoorOpener::GarageDoorOpener(){
     //sigGen = -1;
     cur_state = CLOSED; //initial state
