@@ -10,7 +10,8 @@
 #include <stdio.h>
 #ifdef HARDWARE         //for the actual ir hardware interface
 #include <stdint.h>  //for uint8_t
-
+#include "common.h"
+#include <unistd.h>
 #else                   //keyboard simulated interface
 #include <iostream>
 #include <cstdlib>
@@ -38,7 +39,7 @@ int Motor::receivedFullyOpen(){
 #ifdef HARDWARE
     uint8_t input;
     input= in8(d_i_o_port_b_handle);    //read input reg B
-    if (input & FULLY_OPEN) {           //test fully open sig bit
+    if (input & FULLY_OPEN) {           //test fully open signal bit
         return 1;
     }
 #else
@@ -47,7 +48,7 @@ int Motor::receivedFullyOpen(){
         open_f =0;
         return 1;
     }
-#Endif
+#endif
     return 0;
 }
 
@@ -78,11 +79,11 @@ int Motor::receivedFullyClosed(){
 int Motor::receivedOverCurrent(){
     int ret=0;
 #ifdef HARDWARE
-    uint8_t input;
-    input= in8(d_i_o_port_b_handle);    //read input reg
-    if (input & OVERCURRENT) {          //test overcurrent bit
-        ret =1;
-    }
+//    uint8_t input;
+//    input= in8(d_i_o_port_b_handle);    //read input reg
+//    if (input & OVERCURRENT) {          //test overcurrent bit
+//        ret =1;
+//    }
 #else
 
     char ch;
@@ -106,11 +107,11 @@ int Motor::receivedOverCurrent(){
 int Motor::stopMotor(){
     int ret;
 #ifdef HARDWARE
-    uint8_t output;
-    output = in8(d_i_o_port_a_handle); //read data
-    output &=  ~(MOTOR_UP |MOTOR_DOWN); //clear MOTOR UP and DOwn bits
-    out8(d_i_o_port_a_handle, output) ;//write to port A
-    ret =1;
+//    uint8_t output;
+//    output = in8(d_i_o_port_a_handle); //read data
+//    output &=  ~(MOTOR_UP |MOTOR_DOWN); //clear MOTOR UP and DOwn bits
+//    out8(d_i_o_port_a_handle, output) ;//write to port A
+//    ret =1;
     
 #else
     go =0; // stops the threads at their tick rest
@@ -140,11 +141,11 @@ void * MotorOpenHelper(void* instance) {
  */
 int Motor::motorUp(){
 #ifdef HARDWARE
-    uint8_t output;
-    output = in8(d_i_o_port_a_handle); //read data, to not overwrite data
-    output |=  MOTOR_UP); //set motor up
-    out8(d_i_o_port_a_handle, output); //write to port A
-    ret =1;
+//    uint8_t output;
+//    output = in8(d_i_o_port_a_handle); //read data, to not overwrite data
+//    output |=  MOTOR_UP; //set motor up
+//    out8(d_i_o_port_a_handle, output); //write to port A
+//    return 1;
 
 #else
     //spawn simulating thread
@@ -198,11 +199,11 @@ void Motor::runCloseSim(){
  */
 int Motor::motorDown(){
 #ifdef HARDWARE
-    uint8_t output;
-    output = in8(d_i_o_port_a_handle); //read data, to not overwrite
-    output |=  MOTOR_DOWN); //set motor down
-    out8(d_i_o_port_a_handle, output); //write to port A
-    ret =1;
+//    uint8_t output;
+//    output = in8(d_i_o_port_a_handle); //read data, to not overwrite
+//    output |=  MOTOR_DOWN; //set motor down
+//    out8(d_i_o_port_a_handle, output); //write to port A
+//    return 1;
 #else
     //spawn simulating thread
     printf("Motor:: motorDown\n");

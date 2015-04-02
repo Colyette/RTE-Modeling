@@ -6,3 +6,4 @@ QRDIR=$(dir $(QCONFIG))
 endif
 endif
 include $(QRDIR)$(QRECURSE)
+

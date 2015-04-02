@@ -14,34 +14,71 @@
 //#define QUICK_BUTT_TEST
 
 
-volatile char input;
+//volatile char input;
 struct sigevent event;
 pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 //volatile int inputAvailable = 0;
 volatile int inputGrabbed = 0;
+uint8_t old_inputs;
 
 //maybe use ISRs for Hardware portion
-//const struct sigevent * input_handler(void *arg, int id){
-//	//InterruptMask(KBINTR);
-//	//inputAvailable = 1;
-//	//dude idk how to test this yet
-//	return(&event);
-//}
-//void * input_thread(void *arg){
-//	int id;
-//	//request i/o privity
-//	ThreadCtl(_NTO_TCTL_IO,NULL);
-//	event.sigev_notify = SIGEV_INTR;
-//	//attach ISR to Keyboard interrupt
-//	id = InterruptAttach(KBINTR,&input_handler,NULL, 0, 0 );
-//	while(1){
-//		InterruptWait(0,NULL);
-//		//inputAvailable = 1;
-//		//InterruptUnmask(KBINTR,id);
-//		inputAvailable = 1;
-//	}
-//	return NULL;
-//}
+const struct sigevent * input_handler(void *arg, int id){
+	//check all of the inputs
+	uint8_t new_inputs = in8(d_i_o_port_a_handle);
+	//check FULLY_OPEN
+	if( (old_inputs & FULLY_OPEN)== 0){
+		if ( (new_inputs & FULLY_OPEN)==1 ) {
+			//rising edge on Fully open pin
+			//TODO
+		}
+	}
+	//check FULLY_CLOSED
+	if( (old_inputs & FULLY_CLOSED)== 0){
+		if ( (new_inputs & FULLY_CLOSED)==1 ) {
+			//rising edge on FULLY_CLOSED pin
+			//TODO
+		}
+	}
+
+	//IR_BEAM_BROKEN
+	if( (old_inputs & FULLY_CLOSED)== 0){
+		if ( (new_inputs & FULLY_CLOSED)==1 ) {
+			//rising edge on FULLY_CLOSED pin
+			//TODO
+		}
+	}
+	//OVERCURRENT
+	if( (old_inputs & OVERCURRENT)== 0){
+		if ( (new_inputs & OVERCURRENT)==1 ) {
+			//rising edge on OVERCURRENT pin
+			//TODO
+		}
+	}
+	//REMOTE_PUSHBUTTON
+	if( (old_inputs & REMOTE_PUSHBUTTON)== 0){
+		if ( (new_inputs & REMOTE_PUSHBUTTON)==1 ) {
+			//rising edge on OVERCURRENT pin
+			//TODO
+		}
+	}
+
+	return(&event);
+}
+void * input_thread(void *arg){
+	int id;
+	//request i/o privity
+	ThreadCtl(_NTO_TCTL_IO,NULL);
+	event.sigev_notify = SIGEV_INTR;
+	//attach ISR to Keyboard interrupt
+	id = InterruptAttach(DIO_IRQ,&input_handler,NULL, 0, 0 );
+	while(1){
+		InterruptWait(0,NULL);
+		//inputAvailable = 1;
+		//InterruptUnmask(KBINTR,id);
+		//inputAvailable = 1;
+	}
+	return NULL;
+}
 
 void * GarageDoorOpenerHelper(void* instance) {
     GarageDoorOpener* c_instance = (GarageDoorOpener*) instance;
@@ -126,18 +163,26 @@ void GarageDoorOpener::endSystem(){
  *  program now has two threads
  */
 void GarageDoorOpener::startSystem() {
-
+#ifndef HARDWARE
 	//create keyboard listener thread
 	if ( pthread_create(&kbLis, NULL,KeyBoardHelper,this) ) {
 	        printf("MainThread: error creating Keyboard listener thread thread\n");
 	        return;
 	}
-    //create event listening thread
+#endif
+	//create event listening thread
     if ( pthread_create(&sigGen, NULL,GarageDoorOpenerHelper,this) ) {
         printf("MainThread: error creating sigGen thread\n");
         return;
     }
     
+    //create IRQ thread
+    // start up a thread that is dedicated to interrupt processing
+     if (pthread_create (NULL, NULL, input_thread, NULL)) { //TODO thread id
+    	 printf("MainThread: error creating irq processing thread\n");
+    	 return;
+     }
+
     //run state machine
     printf("MainThread:Starting main state machine\n");
     while (runProgram ) {

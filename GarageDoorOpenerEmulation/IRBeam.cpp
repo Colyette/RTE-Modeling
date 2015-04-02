@@ -11,7 +11,8 @@
 
 #ifdef HARDWARE         //for the actual ir hardware interface
 #include <stdint.h>  //for uint8_t
-
+#include "common.h"
+#include <unistd.h>
 #else                   //keyboard simulated interface
 #include <iostream>
 #include <cstdlib>
@@ -38,16 +39,13 @@ IRBeam::~IRBeam() {
 int IRBeam::irBeamOn() {
     int ret=0;
 #ifdef HARDWARE
-    //TODO hardware interface definitions
-    uint8_t output;
-    output = in8(d_i_o_port_a_handle); //read data
-    output |=  IR_BEAM_ON); //set IR Beam bit on
-    if ( !out8(d_i_o_port_a_handle, output) )  {//write to port a
-        printf("Error turning on IR Beam\n");
-        ret =0;
-    } else {
-        ret =1;
-    }
+//    //TODO hardware interface definitions
+//    uint8_t output;
+//    output = in8(d_i_o_port_a_handle); //read data
+//    output |=  IR_BEAM_ON; //set IR Beam bit on
+//    out8(d_i_o_port_a_handle, output);
+//    return 1;
+
 #else
     ret = 1;
 #endif
@@ -67,12 +65,12 @@ int IRBeam::irBeamOn() {
 int IRBeam::irBeamOff(){
     int ret=0;
 #ifdef HARDWARE
-    //TODO hardware interface definitions
-    uint8_t output;
-    output = in8(d_i_o_port_a_handle); //read data
-    output &=  ~IR_BEAM_ON); //clear IR Beam bit on
-    out8(d_i_o_port_a_handle, output) ;//write to port a
-    ret =1;
+//    //TODO hardware interface definitions
+//    uint8_t output;
+//    output = in8(d_i_o_port_a_handle); //read data
+//    output &=  ~IR_BEAM_ON; //clear IR Beam bit on
+//    out8(d_i_o_port_a_handle, output) ;//write to port a
+//    ret =1;
 #else
     ret = 1; 
 #endif
@@ -92,12 +90,12 @@ int IRBeam::irBeamOff(){
 int IRBeam::receivedIRTrip(){
     int ret=0;
 #ifdef HARDWARE
-    //TODO hardware interface definitions
-    uint8_t input;
-    input= in8(d_i_o_port_b_handle);
-    if (input & IR_BEAM_BROKEN) {   //test IR BEAM broken bit
-        ret =1;
-    }
+//    //TODO hardware interface definitions
+//    uint8_t input;
+//    input= in8(d_i_o_port_b_handle);
+//    if (input & IR_BEAM_BROKEN) {   //test IR BEAM broken bit
+//        ret =1;
+//    }
     
 #else
 
