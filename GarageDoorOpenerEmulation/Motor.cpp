@@ -37,11 +37,11 @@ Motor::~Motor() {
  */
 int Motor::receivedFullyOpen(){
 #ifdef HARDWARE
-    uint8_t input;
-    input= in8(d_i_o_port_b_handle);    //read input reg B
-    if (input & FULLY_OPEN) {           //test fully open signal bit
-        return 1;
-    }
+//    uint8_t input;
+//    input= in8(d_i_o_port_b_handle);    //read input reg B
+//    if (input & FULLY_OPEN) {           //test fully open signal bit
+//        return 1;
+//    }
 #else
     
     if (open_f) {
@@ -58,11 +58,11 @@ int Motor::receivedFullyOpen(){
  */
 int Motor::receivedFullyClosed(){
 #ifdef HARDWARE
-    uint8_t input;
-    input= in8(d_i_o_port_b_handle);    //read input reg B
-    if (input & FULLY_CLOSED) {         //test fully closed signal bit
-        return 1;
-    }
+//    uint8_t input;
+//    input= in8(d_i_o_port_b_handle);    //read input reg B
+//    if (input & FULLY_CLOSED) {         //test fully closed signal bit
+//        return 1;
+//    }
 #else
     
     if (closed_f) {

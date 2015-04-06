@@ -9,10 +9,18 @@
 #include <iostream>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 #include "common.h"
+#include <sys/syspage.h> //qtime
+#include <assert.h> //sddrt
+#include <hw/inout.h>     /* for in*() and out*() functions */
+#include <sys/neutrino.h> /* for ThreadCtl() */
+#include <sys/mman.h>     /* for mmap_device_io() */
+#include <sys/netmgr.h>
+#include <stdlib.h> //exit()
 #include "GarageDoorOpener.h"
 //#define QUICK_BUTT_TEST
-
+#define TIMER_POLL
 
 //volatile char input;
 struct sigevent event;
@@ -20,9 +28,17 @@ pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 //volatile int inputAvailable = 0;
 volatile int inputGrabbed = 0;
 uint8_t old_inputs;
+volatile char input = 0;
+
+//handler instantiation
+uintptr_t d_i_o_control_handle = -1 ;     // control register for ports A, B, and C
+uintptr_t d_i_o_port_a_handle = -1 ;
+uintptr_t d_i_o_port_b_handle =-1 ;
+uintptr_t d_i_o_port_interrupt_handle= -1 ;
 
 //maybe use ISRs for Hardware portion
 const struct sigevent * input_handler(void *arg, int id){
+	InterruptMask(DIO_IRQ,id);
 	//check all of the inputs
 	uint8_t new_inputs = in8(d_i_o_port_a_handle);
 	//check FULLY_OPEN
@@ -30,6 +46,7 @@ const struct sigevent * input_handler(void *arg, int id){
 		if ( (new_inputs & FULLY_OPEN)==1 ) {
 			//rising edge on Fully open pin
 			//TODO
+			input = 'o'; //character for fully open GD
 		}
 	}
 	//check FULLY_CLOSED
@@ -37,14 +54,16 @@ const struct sigevent * input_handler(void *arg, int id){
 		if ( (new_inputs & FULLY_CLOSED)==1 ) {
 			//rising edge on FULLY_CLOSED pin
 			//TODO
+			input = 'c'; //character for fully closed GD
 		}
 	}
 
 	//IR_BEAM_BROKEN
-	if( (old_inputs & FULLY_CLOSED)== 0){
-		if ( (new_inputs & FULLY_CLOSED)==1 ) {
+	if( (old_inputs & IR_BEAM_BROKEN)== 0){
+		if ( (new_inputs & IR_BEAM_BROKEN)==1 ) {
 			//rising edge on FULLY_CLOSED pin
 			//TODO
+			input = 'i';
 		}
 	}
 	//OVERCURRENT
@@ -52,6 +71,7 @@ const struct sigevent * input_handler(void *arg, int id){
 		if ( (new_inputs & OVERCURRENT)==1 ) {
 			//rising edge on OVERCURRENT pin
 			//TODO
+			input = 'm';
 		}
 	}
 	//REMOTE_PUSHBUTTON
@@ -59,25 +79,123 @@ const struct sigevent * input_handler(void *arg, int id){
 		if ( (new_inputs & REMOTE_PUSHBUTTON)==1 ) {
 			//rising edge on OVERCURRENT pin
 			//TODO
+			input = 'r';
 		}
 	}
-
+	InterruptUnmask(DIO_IRQ,id);
 	return(&event);
 }
 void * input_thread(void *arg){
-	int id;
-	//request i/o privity
-	ThreadCtl(_NTO_TCTL_IO,NULL);
-	event.sigev_notify = SIGEV_INTR;
-	//attach ISR to Keyboard interrupt
-	id = InterruptAttach(DIO_IRQ,&input_handler,NULL, 0, 0 );
-	while(1){
-		InterruptWait(0,NULL);
-		//inputAvailable = 1;
-		//InterruptUnmask(KBINTR,id);
-		//inputAvailable = 1;
+#ifndef TIMER_POLL
+//	int id,err;
+//	printf("input_thread created\n");
+//	//request i/o privity
+//	if ( ThreadCtl(_NTO_TCTL_IO,NULL)==-1) {
+//			 fprintf(stderr, "failure\n");
+//	}
+//	event.sigev_notify = SIGEV_INTR;
+//	printf(".");
+//	//attach ISR to Keyboard interrupt
+//	id = InterruptAttach(DIO_IRQ,&input_handler,NULL, 0, 0 );
+//	printf(".");
+//	while(1){
+//
+//		InterruptWait(0,NULL);
+//		//InterruptUnmask(DIO_IRQ,id);
+//		printf("input:%c\n",input);
+//	}
+//	return NULL;
+
+#else
+	/**********TIMER Variables******************************************/
+		int pid;
+		int chid;
+	 	int pulse_id = 0 ;
+		timer_t timer_id;
+		struct sigevent event;
+		struct itimerspec timer;
+		struct _clockperiod clkper;
+		struct _pulse pulse;
+		unsigned long last_cycles=-1;
+		unsigned long current_cycles;
+		int count = 0 ;
+		float cpu_freq;
+		time_t start;
+		int tempbool;
+		/* Get the CPU frequency in order to do precise time calculations. */
+		cpu_freq = SYSPAGE_ENTRY( qtime )->cycles_per_sec;
+		/*************End Timer Variables***************************************/
+		//////////////////////////////////////////////////////////////////////////////
+		// Beginning of the most important code for Project 3
+		/////////////////////////////////////////////////////////////////////////////////
+				// Change the clock tick size from 10 ms to 1 ms.
+				clkper.nsec =20000;
+				clkper.fract = 0;
+				ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
+
+				/* Create a channel to receive timer events on. */
+				chid = ChannelCreate( 0 );
+				assert ( chid != -1 );			// if returns a -1 for failure we stop with error
+				/* Set up the timer and timer event. */
+				event.sigev_notify = SIGEV_PULSE;		// most basic message we can send -- just a pulse number
+				event.sigev_coid = ConnectAttach ( ND_LOCAL_NODE, 0, chid, 0, 0 );  // Get ID that allows me to communicate on the channel
+				assert ( event.sigev_coid != -1 );		// stop with error if cannot attach to channel
+				event.sigev_priority = getprio(0);
+				event.sigev_code = 1023;				// arbitrary number assigned to this pulse
+				event.sigev_value.sival_ptr = (void*)pulse_id;		// ?? TBD
+
+				// Now create the timer and get back the timer_id value for the timer we created.
+				if ( timer_create( CLOCK_REALTIME, &event, &timer_id ) == -1 )	// CLOCK_REALTIME available in all POSIX systems
+				{
+					perror ( "can’t create timer" );
+					exit( EXIT_FAILURE );
+				}
+				/* Change the timer request to alter the behavior. */
+			#if 1
+				timer.it_value.tv_sec = 0;
+				timer.it_value.tv_nsec = 20000;		// interrupt at 1 ms.
+				timer.it_interval.tv_sec = 0;
+				timer.it_interval.tv_nsec = 20000;	// keep interrupting every 1 ms.
+			#else
+				timer.it_value.tv_sec = 0;
+				timer.it_value.tv_nsec = 999847;		// exact timing that match PC hardware for 1 ms.
+				timer.it_interval.tv_sec = 0;
+				timer.it_interval.tv_nsec = 999847;
+			#endif
+				/* Start the timer. */
+				if ( timer_settime( timer_id, 0, &timer, NULL ) == -1 )
+				{
+					perror("Can’t start timer.\n");
+					exit( EXIT_FAILURE );
+				}
+
+				/* Keep track of time. */
+				start = time(NULL);
+
+				tempbool=0;
+		//		for( ;; )
+		//		{
+					/* Wait for a pulse. */
+		//			pid = MsgReceivePulse ( chid, &pulse, sizeof( pulse ),
+		//					NULL );
+		//			clktimer+=10;
+		//			if (tempbool) {
+		//				out8(data_w_handle,HIGH);
+		//				tempbool=0;
+		//			} else{
+		//				out8(data_w_handle,LOW);
+		//				tempbool=1;
+		//				//delay(1);
+		//			}
+		//		}
+		/************End TIMER INIT*******************/
+	while (1) {
+		MsgReceivePulse(chid,&pulse,  sizeof( pulse ),NULL);
+		printf("pulse\n");
 	}
-	return NULL;
+#endif
+
+
 }
 
 void * GarageDoorOpenerHelper(void* instance) {
@@ -101,6 +219,7 @@ void GarageDoorOpener::SetupDIO() {
     d_i_o_control_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_CONTROL_REGISTER ) ;
     d_i_o_port_a_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_PORT_A ) ;
     d_i_o_port_b_handle = mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_PORT_B ) ;
+    d_i_o_port_interrupt_handle =mmap_device_io( D_I_O_PORT_LENGTH, D_I_O_INTERRUPT_DMA_COUNTER_CONTROL );
 }
 
 /**
@@ -125,15 +244,16 @@ int GarageDoorOpener::GetRootAccess(){
  * \brief
  */
 int GarageDoorOpener::setPortDirection(){
-    if ( GetRootAccess()){
+	//if ( !GetRootAccess()){
         SetupDIO();
         out8( d_i_o_control_handle, DIO_DIR) ;     // make port A input,B output
+        out8( d_i_o_port_interrupt_handle, DINTE);
         printf("Set A as input and B as output\n");
         return 1;
-    }else {
-        printf("Couldn't get root access to set DIO ports\n");
-        return (-1);
-    }
+//    }else {
+//        printf("Couldn't get root access to set DIO ports\n");
+//        return (-1);
+//    }
     
 }
 
@@ -580,7 +700,13 @@ int main() {
 //    	return -1;
 //    }
 
+    if (!mech.GetRootAccess()){
+    	mech.setPortDirection();
 
+    	mech.startSystem();
+    }else {
+    	return 0;
+    }
     
 
     //run statemachine

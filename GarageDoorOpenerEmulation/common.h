@@ -41,14 +41,16 @@
 
 
 //handlers
-   uintptr_t d_i_o_control_handle ;     // control register for ports A, B, and C
-   uintptr_t d_i_o_port_a_handle ;
-   uintptr_t d_i_o_port_b_handle ;
+extern uintptr_t d_i_o_control_handle ;     // control register for ports A, B, and C
+extern uintptr_t d_i_o_port_a_handle ;
+extern uintptr_t d_i_o_port_b_handle ;
+extern uintptr_t d_i_o_port_interrupt_handle ;
 //#define KBINTR 1	//interrupt vector number for QNX
 
 extern pthread_mutex_t mut;
-volatile char input; //KEVIN moved this for some reason to garageDoor Opener.cpp
 volatile extern int inputGrabbed;
+volatile extern char input; //KEVIN moved this for some reason to garageDoor Opener.cpp
+
 
 #endif
 
