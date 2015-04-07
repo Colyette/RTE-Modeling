@@ -37,9 +37,9 @@
 #define MOTOR_UP            (0x01)
 #define MOTOR_DOWN          (0x02)
 #define IR_BEAM_ON          (0x04)
-#define SIMULATOR_RESET     (0x10)
+#define SIMULATOR_RESET     (0x08)
 
-
+#define POLL_RATE (250000000)
 //handlers
 extern uintptr_t d_i_o_control_handle ;     // control register for ports A, B, and C
 extern uintptr_t d_i_o_port_a_handle ;

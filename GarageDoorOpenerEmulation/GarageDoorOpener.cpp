@@ -27,7 +27,7 @@ struct sigevent event;
 pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 //volatile int inputAvailable = 0;
 volatile int inputGrabbed = 0;
-uint8_t old_inputs;
+uint8_t old_inputs =0;
 volatile char input = 0;
 
 //handler instantiation
@@ -37,165 +37,175 @@ uintptr_t d_i_o_port_b_handle =-1 ;
 uintptr_t d_i_o_port_interrupt_handle= -1 ;
 
 //maybe use ISRs for Hardware portion
+#ifndef TIMER_POLL
 const struct sigevent * input_handler(void *arg, int id){
+#else
+int GarageDoorOpener::input_handler(){
+#endif
+	char tempChar; //used to fill up character Q for trig each event
+	int swtchCnt=0; //counts the number of rising edges
+#ifndef TIMER_POLL
 	InterruptMask(DIO_IRQ,id);
+#endif
 	//check all of the inputs
 	uint8_t new_inputs = in8(d_i_o_port_a_handle);
+	//printf("o:%x,n:%x\n",old_inputs,new_inputs);
 	//check FULLY_OPEN
 	if( (old_inputs & FULLY_OPEN)== 0){
-		if ( (new_inputs & FULLY_OPEN)==1 ) {
+		if ( (new_inputs & FULLY_OPEN)==FULLY_OPEN ) {
 			//rising edge on Fully open pin
 			//TODO
-			input = 'o'; //character for fully open GD
+			tempChar = 'o'; //character for fully open GD
+			inQ.push(tempChar);
+
+			swtchCnt++;
 		}
 	}
+
 	//check FULLY_CLOSED
 	if( (old_inputs & FULLY_CLOSED)== 0){
-		if ( (new_inputs & FULLY_CLOSED)==1 ) {
+		if ( (new_inputs & FULLY_CLOSED)==FULLY_CLOSED ) {
 			//rising edge on FULLY_CLOSED pin
 			//TODO
-			input = 'c'; //character for fully closed GD
+			tempChar = 'c'; //character for fully closed GD
+			inQ.push(tempChar);
+			swtchCnt++;
 		}
 	}
 
 	//IR_BEAM_BROKEN
 	if( (old_inputs & IR_BEAM_BROKEN)== 0){
-		if ( (new_inputs & IR_BEAM_BROKEN)==1 ) {
+		if ( (new_inputs & IR_BEAM_BROKEN)==IR_BEAM_BROKEN ) {
 			//rising edge on FULLY_CLOSED pin
 			//TODO
-			input = 'i';
+			tempChar = 'i';
+			inQ.push(tempChar);
+			swtchCnt++;
 		}
 	}
+
 	//OVERCURRENT
 	if( (old_inputs & OVERCURRENT)== 0){
-		if ( (new_inputs & OVERCURRENT)==1 ) {
+		if ( (new_inputs & OVERCURRENT)==OVERCURRENT ) {
 			//rising edge on OVERCURRENT pin
 			//TODO
-			input = 'm';
+			tempChar = 'm';
+			inQ.push(tempChar);
+			swtchCnt++;
 		}
 	}
+
 	//REMOTE_PUSHBUTTON
 	if( (old_inputs & REMOTE_PUSHBUTTON)== 0){
-		if ( (new_inputs & REMOTE_PUSHBUTTON)==1 ) {
+		if ( (new_inputs & REMOTE_PUSHBUTTON)==REMOTE_PUSHBUTTON ) {
 			//rising edge on OVERCURRENT pin
 			//TODO
-			input = 'r';
+			tempChar = 'r';
+			inQ.push(tempChar);
+			swtchCnt++;
 		}
 	}
+
+	//change old inputs not
+	old_inputs = new_inputs; //TODO may need to account for old input rise handled
+#ifndef TIMER_POLL
 	InterruptUnmask(DIO_IRQ,id);
 	return(&event);
-}
-void * input_thread(void *arg){
-#ifndef TIMER_POLL
-//	int id,err;
-//	printf("input_thread created\n");
-//	//request i/o privity
-//	if ( ThreadCtl(_NTO_TCTL_IO,NULL)==-1) {
-//			 fprintf(stderr, "failure\n");
-//	}
-//	event.sigev_notify = SIGEV_INTR;
-//	printf(".");
-//	//attach ISR to Keyboard interrupt
-//	id = InterruptAttach(DIO_IRQ,&input_handler,NULL, 0, 0 );
-//	printf(".");
-//	while(1){
-//
-//		InterruptWait(0,NULL);
-//		//InterruptUnmask(DIO_IRQ,id);
-//		printf("input:%c\n",input);
-//	}
-//	return NULL;
-
 #else
-	/**********TIMER Variables******************************************/
-		int pid;
-		int chid;
-	 	int pulse_id = 0 ;
-		timer_t timer_id;
-		struct sigevent event;
-		struct itimerspec timer;
-		struct _clockperiod clkper;
-		struct _pulse pulse;
-		unsigned long last_cycles=-1;
-		unsigned long current_cycles;
-		int count = 0 ;
-		float cpu_freq;
-		time_t start;
-		int tempbool;
-		/* Get the CPU frequency in order to do precise time calculations. */
-		cpu_freq = SYSPAGE_ENTRY( qtime )->cycles_per_sec;
-		/*************End Timer Variables***************************************/
-		//////////////////////////////////////////////////////////////////////////////
-		// Beginning of the most important code for Project 3
-		/////////////////////////////////////////////////////////////////////////////////
-				// Change the clock tick size from 10 ms to 1 ms.
-				clkper.nsec =20000;
-				clkper.fract = 0;
-				ClockPeriod ( CLOCK_REALTIME, &clkper, NULL, 0 ); // 1ms
-
-				/* Create a channel to receive timer events on. */
-				chid = ChannelCreate( 0 );
-				assert ( chid != -1 );			// if returns a -1 for failure we stop with error
-				/* Set up the timer and timer event. */
-				event.sigev_notify = SIGEV_PULSE;		// most basic message we can send -- just a pulse number
-				event.sigev_coid = ConnectAttach ( ND_LOCAL_NODE, 0, chid, 0, 0 );  // Get ID that allows me to communicate on the channel
-				assert ( event.sigev_coid != -1 );		// stop with error if cannot attach to channel
-				event.sigev_priority = getprio(0);
-				event.sigev_code = 1023;				// arbitrary number assigned to this pulse
-				event.sigev_value.sival_ptr = (void*)pulse_id;		// ?? TBD
-
-				// Now create the timer and get back the timer_id value for the timer we created.
-				if ( timer_create( CLOCK_REALTIME, &event, &timer_id ) == -1 )	// CLOCK_REALTIME available in all POSIX systems
-				{
-					perror ( "can’t create timer" );
-					exit( EXIT_FAILURE );
-				}
-				/* Change the timer request to alter the behavior. */
-			#if 1
-				timer.it_value.tv_sec = 0;
-				timer.it_value.tv_nsec = 20000;		// interrupt at 1 ms.
-				timer.it_interval.tv_sec = 0;
-				timer.it_interval.tv_nsec = 20000;	// keep interrupting every 1 ms.
-			#else
-				timer.it_value.tv_sec = 0;
-				timer.it_value.tv_nsec = 999847;		// exact timing that match PC hardware for 1 ms.
-				timer.it_interval.tv_sec = 0;
-				timer.it_interval.tv_nsec = 999847;
-			#endif
-				/* Start the timer. */
-				if ( timer_settime( timer_id, 0, &timer, NULL ) == -1 )
-				{
-					perror("Can’t start timer.\n");
-					exit( EXIT_FAILURE );
-				}
-
-				/* Keep track of time. */
-				start = time(NULL);
-
-				tempbool=0;
-		//		for( ;; )
-		//		{
-					/* Wait for a pulse. */
-		//			pid = MsgReceivePulse ( chid, &pulse, sizeof( pulse ),
-		//					NULL );
-		//			clktimer+=10;
-		//			if (tempbool) {
-		//				out8(data_w_handle,HIGH);
-		//				tempbool=0;
-		//			} else{
-		//				out8(data_w_handle,LOW);
-		//				tempbool=1;
-		//				//delay(1);
-		//			}
-		//		}
-		/************End TIMER INIT*******************/
-	while (1) {
-		MsgReceivePulse(chid,&pulse,  sizeof( pulse ),NULL);
-		printf("pulse\n");
-	}
+	return swtchCnt;
 #endif
 
 
+}
+
+int GarageDoorOpener::InitializeTimer(long nsfreq, int pulseid){
+  int chid;
+  timer_t timer_id;
+  struct sigevent event;
+  struct itimerspec timer;
+  printf("Initializing Pulses at %ldns with pulse id as %d\n", nsfreq, pulseid);
+
+  /* Create a channel to receive timer events on. */
+  chid = ChannelCreate( 0 ); //b: opening up a channel to send messages through
+  assert ( chid != -1 );      // if returns a -1 for failure we stop with error
+  /* Set up the timer and timer event. */
+  event.sigev_notify = SIGEV_PULSE;   // most basic message we can send -- just a pulse number
+  event.sigev_coid = ConnectAttach ( ND_LOCAL_NODE, 0, chid, 0, 0 );  // Get ID that allows me to communicate on the channel
+  assert ( event.sigev_coid != -1 );    // stop with error if cannot attach to channel
+  event.sigev_priority = getprio(0);
+  event.sigev_value.sival_int = pulseid;
+
+  // Now create the timer and get back the timer_id value for the timer we created.
+  if ( timer_create( CLOCK_REALTIME, &event, &timer_id ) == -1 )  // CLOCK_REALTIME available in all POSIX systems
+  {
+    perror ( "cannot create timer\n" );
+    exit( EXIT_FAILURE );
+  }
+
+  /* Change the timer request to alter the behavior. */
+  timer.it_value.tv_sec = 0;
+  timer.it_value.tv_nsec = nsfreq;    // interrupt nsfreq -> period
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_nsec = nsfreq; // keep interrupting nsfreq
+
+  /* Start the timer. */
+  if ( timer_settime( timer_id, 0, &timer, NULL ) == -1 )
+  {
+    perror("cannot start timer.\n");
+    exit( EXIT_FAILURE );
+  }
+
+  return chid;
+}
+
+#ifndef TIMER_POLL
+void * input_thread(void *arg){
+#else
+void * GarageDoorOpener::input_thread(){
+#endif
+#ifndef TIMER_POLL
+	int id,err;
+	printf("input_thread created\n");
+	//request i/o privity
+	if ( ThreadCtl(_NTO_TCTL_IO,NULL)==-1) {
+			 fprintf(stderr, "failure\n");
+	}
+	event.sigev_notify = SIGEV_INTR;
+	printf(".");
+	//attach ISR to Keyboard interrupt
+	id = InterruptAttach(DIO_IRQ,&input_handler,NULL, 0, 0 );
+	printf(".");
+	while(1){
+
+		InterruptWait(0,NULL);
+		//InterruptUnmask(DIO_IRQ,id);
+		printf("input:%c\n",input);
+	}
+	return NULL;
+
+#else
+	int cnt;
+	printf("input_thread created\n");
+	struct _pulse pulse; //for timer msg
+	int chid,pid; //for target of timer msg passing
+	chid= InitializeTimer(POLL_RATE,1); //returns the ch id for send messages
+	while (1) {
+		pid = MsgReceivePulse(chid,&pulse,  sizeof( pulse ),NULL);
+		//printf("#\n");
+		cnt = input_handler();
+		if (cnt) { //a change in DIO was recognized
+			//printf("%d\n",cnt);
+		}
+	}
+	return NULL;
+#endif
+}
+
+void * DIOListenerHelper(void* instance) {
+    GarageDoorOpener* c_instance = (GarageDoorOpener*) instance;
+    printf("DIOListnerHelper: dioLis going into input_thread() funct\n");
+    c_instance->input_thread(); //casted to instantiated class and run main thread funct
+    return 0 ;
 }
 
 void * GarageDoorOpenerHelper(void* instance) {
@@ -296,16 +306,31 @@ void GarageDoorOpener::startSystem() {
         return;
     }
     
-    //create IRQ thread
+    // X create IRQ thread
     // start up a thread that is dedicated to interrupt processing
-     if (pthread_create (NULL, NULL, input_thread, NULL)) { //TODO thread id
-    	 printf("MainThread: error creating irq processing thread\n");
+     if (pthread_create (&dioLis, NULL, DIOListenerHelper, this)) { //TODO thread id
+    	 printf("MainThread: error creating dio processing thread\n");
     	 return;
      }
+
+#ifdef HARDWARE
+     //reset FPGA
+     uint8_t before = in8(d_i_o_port_b_handle);
+     before =0; //set low
+     out8(d_i_o_port_b_handle,before);
+     delay(1);
+     before = in8(d_i_o_port_b_handle);
+     printf("FPGA inputs set 0x%x\n", before);
+     before |= SIMULATOR_RESET; //set high reset
+     out8(d_i_o_port_b_handle,before);
+
+#endif
 
     //run state machine
     printf("MainThread:Starting main state machine\n");
     while (runProgram ) {
+
+
 
         if(eventTriggeredLast < MAX_EVENTS) { //an event was triggered by sigGen
             runStateMachine();
@@ -460,6 +485,9 @@ void GarageDoorOpener::runStateMachine(){
                         break;
                         
                     default:
+                    	pthread_mutex_lock(&mut);
+                    	eventTriggeredLast = MAX_EVENTS;
+                    	pthread_mutex_unlock(&mut);
                         break;
                 }
                 break;

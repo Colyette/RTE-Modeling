@@ -20,7 +20,7 @@
 #include "IRBeam.h"
 #include "Motor.h"
 
-
+#define TIMER_POLL
 
 enum states { CLOSED, OPEN, STOP, OPENING,CLOSING, ERROR,MAX_STATES} gdstate_t;
 enum events { button_press, fully_closed, fully_open, ir_trip, over_current, MAX_EVENTS } new_event;
@@ -70,6 +70,12 @@ public:
     pthread_t getKBLis();
     
     void getKBInput();
+#ifdef TIMER_POLL
+    int InitializeTimer(long nsfreq, int pulseid);
+    int input_handler();
+    void * input_thread();
+#endif
+
     //composed classes
     Motor* motor;
     IRBeam* irb;
@@ -98,6 +104,8 @@ private:
     
     //thread for keyboard listener
     pthread_t kbLis;
+
+    pthread_t dioLis;
 
     //flag to sync thread
     int runProgram;

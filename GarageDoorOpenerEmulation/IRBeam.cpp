@@ -39,12 +39,14 @@ IRBeam::~IRBeam() {
 int IRBeam::irBeamOn() {
     int ret=0;
 #ifdef HARDWARE
-//    //TODO hardware interface definitions
-//    uint8_t output;
-//    output = in8(d_i_o_port_a_handle); //read data
-//    output |=  IR_BEAM_ON; //set IR Beam bit on
-//    out8(d_i_o_port_a_handle, output);
-//    return 1;
+    //TODO hardware interface definitions
+    uint8_t output;
+    output = in8(d_i_o_port_b_handle); //read data
+    output |=  IR_BEAM_ON; //set IR Beam bit on
+    out8(d_i_o_port_b_handle, output);
+    printf("irBeam turned on\n");
+	beamCon=1;
+    return 1;
 
 #else
     ret = 1;
@@ -66,11 +68,13 @@ int IRBeam::irBeamOff(){
     int ret=0;
 #ifdef HARDWARE
 //    //TODO hardware interface definitions
-//    uint8_t output;
-//    output = in8(d_i_o_port_a_handle); //read data
-//    output &=  ~IR_BEAM_ON; //clear IR Beam bit on
-//    out8(d_i_o_port_a_handle, output) ;//write to port a
-//    ret =1;
+    uint8_t output;
+    output = in8(d_i_o_port_b_handle); //read data
+    output &=  ~IR_BEAM_ON; //clear IR Beam bit on
+    out8(d_i_o_port_b_handle, output) ;//write to port a
+    printf("irBeam turned off\n");
+	beamCon=0;
+    ret =1;
 #else
     ret = 1; 
 #endif
@@ -96,7 +100,17 @@ int IRBeam::receivedIRTrip(){
 //    if (input & IR_BEAM_BROKEN) {   //test IR BEAM broken bit
 //        ret =1;
 //    }
-    
+    char ch;
+	if(beamCon) { //check if beam is actually on
+
+		if(input == 'i'){
+			inputGrabbed = 1;
+			//printf("\nIRBeam:got key input: %c\n",input);
+			ret = 1;
+		}else{
+			ret=0;
+		}
+	}
 #else
 
     char ch;

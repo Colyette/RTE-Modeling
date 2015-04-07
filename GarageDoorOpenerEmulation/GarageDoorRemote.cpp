@@ -36,6 +36,16 @@ int GarageDoorRemote::receivedButtonPress(){
 //    if (input & REMOTE_PUSHBUTTON) {    //test button press bit
 //        ret =1;
 //    }
+    char ch;
+
+	if(input == 'r'){
+		inputGrabbed = 1;
+    	//printf("\nGarageDoorRemote:got key input: %c\n", input);
+    	ret = 1;
+	}else{
+		//std::cin.clear();
+		ret=0;
+	}
 #else
 
     char ch;
