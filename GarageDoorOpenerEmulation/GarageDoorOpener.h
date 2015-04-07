@@ -71,8 +71,17 @@ public:
     
     void getKBInput();
 #ifdef TIMER_POLL
-    int InitializeTimer(long nsfreq, int pulseid);
+    /**
+     * 	\brief initializes timer for input polling
+     */
+    int InitializeTimer(long nsfreq, int pulseid);\
+    /**
+     * \brief handles changes in incoming inputs on port A
+     */
     int input_handler();
+    /**
+     * \brief triggers polling of input_handler function
+     */
     void * input_thread();
 #endif
 
